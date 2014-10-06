@@ -1,44 +1,10 @@
-angular-d3geo-directive
-=======================
-
-# angular-d3geo-directives
-
-An Angular directive for reusable web maps using D3 and GeoJSON
-
-## Requirements
-- Angular
-- D3
-
-## Example
-
-### Directive Example
-
-```
-<div ng-controller='MainCtrl'>
-    <d3map
-        geojson="data"
-        symbols=""
-        hoversymbols=""
-        projection=mercator
-        height=600
-        width=1000
-        zoomto=false
-        pan=true
-        >
-    </d3map>
-</div>
-```
-
-### Control Example
-
-```
 var mapApp = angular.module('d3GeoDirectives', ['d3MapModule']);
 
 mapApp.service('dataService', function( $http, $q ){
     function getData() {
         var request = $http({
             method: "get",
-            url: "data/world.geojson",
+            url: "../data/world.geojson",
             params: {
                 action: "get"
             }
@@ -77,7 +43,4 @@ mapApp.controller('MainCtrl', function($scope, dataService) {
         $scope.data = data;
     }
 });
-```
-
-
 
