@@ -151,7 +151,7 @@
                 pan: '=',
                 zoomto: '='
             },
-            template: "<div id='map'></div>",
+            template: "<div></div>",
             link: function(scope, element, attrs) {
 
                 var svg;
