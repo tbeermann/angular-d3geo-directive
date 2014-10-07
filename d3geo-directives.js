@@ -10,114 +10,128 @@
     'use strict';
 
     var d3MapModule = new angular.module('d3MapModule', []);
-    var d3MapUtilities = window.d3MapUtilities || {};
 
-    d3MapUtilities.zoomToLayer = function(layer, path, projection, height, width){
-        var bounds = [];
-        layer.each(function(d){
-            var b = d3.geo.bounds(d);
-            bounds.push(b);
-        });
-        d3MapUtilities.zoomToLayersBox(layer,d3MapUtilities.determineBoundingBox(bounds), projection, height, width);
-    };
+    d3MapModule.factory("d3MapUtilities", [function () {
+        return {
 
-    d3MapUtilities.zoomToLayersBox = function(layer, box, projection, height, width){
-        var b = [];
-        b.push( projection([box[0][0], box[0][1]]));
-        b.push( projection([box[1][0], box[1][1]]));
-        var factor = .95;
-        var scale =  factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width, Math.abs((b[1][1] - b[0][1])) / height);
-        var translate =   -(b[1][0] + b[0][0]) / 2 + "," + -(b[1][1] + b[0][1]) / 2;
-        layer.transition().duration(750).attr("transform",
-                "translate(" + projection.translate() + ")"
-                + "scale(" + scale.toString() + ")"
-                + "translate(" + translate.toString() + ")");
-    };
-
-    d3MapUtilities.determineBoundingBox = function(data){
-        var minX = data[0][0][0];
-        var minY = data[0][0][1];
-        var maxX = data[0][1][0];
-        var maxY = data[0][1][1];
-        var l = data.length;
-        for (var i = 1; i < l; i++){
-            var d = data[i];
-            var minXX =  d[0][0];
-            if (minX > minXX){minX = minXX;}
-            var minYY = d[0][1];
-            if(minY > minYY) {minY = minYY;}
-            var maxXX = d[1][0];
-            if (maxX < maxXX){ maxX = maxXX;}
-            var maxYY = d[1][1];
-            if (maxY < maxYY ){ maxY = maxYY;}
-        }
-        return [[minX, minY], [maxX, maxY]];
-    };
-
-    d3MapUtilities.verifyIsGeoJson = function(data){
-        // A quick and not very sophisticated check to see if the data
-        // is 'probably' geojson
-        if (data === undefined) {return false;}
-        if (data.hasOwnProperty("type")){
-            if (data.type === "FeatureCollection"){
-                return true;
+            zoomToLayer: function (layer, path, projection, height, width) {
+                var bounds = [];
+                layer.each(function (d) {
+                    var b = d3.geo.bounds(d);
+                    bounds.push(b);
+                });
+                d3MapUtilities.zoomToLayersBox(layer, d3MapUtilities.determineBoundingBox(bounds), projection, height, width);
+            },
+            zoomToLayersBox: function (layer, box, projection, height, width) {
+                var b = [];
+                b.push(projection([box[0][0], box[0][1]]));
+                b.push(projection([box[1][0], box[1][1]]));
+                var factor = .95;
+                var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width, Math.abs((b[1][1] - b[0][1])) / height);
+                var translate = -(b[1][0] + b[0][0]) / 2 + "," + -(b[1][1] + b[0][1]) / 2;
+                layer.transition().duration(750).attr("transform",
+                    "translate(" + projection.translate() + ")"
+                        + "scale(" + scale.toString() + ")"
+                        + "translate(" + translate.toString() + ")");
+            },
+            determineBoundingBox: function (data) {
+                var minX = data[0][0][0];
+                var minY = data[0][0][1];
+                var maxX = data[0][1][0];
+                var maxY = data[0][1][1];
+                var l = data.length;
+                for (var i = 1; i < l; i++) {
+                    var d = data[i];
+                    var minXX = d[0][0];
+                    if (minX > minXX) {
+                        minX = minXX;
+                    }
+                    var minYY = d[0][1];
+                    if (minY > minYY) {
+                        minY = minYY;
+                    }
+                    var maxXX = d[1][0];
+                    if (maxX < maxXX) {
+                        maxX = maxXX;
+                    }
+                    var maxYY = d[1][1];
+                    if (maxY < maxYY) {
+                        maxY = maxYY;
+                    }
+                }
+                return [
+                    [minX, minY],
+                    [maxX, maxY]
+                ];
+            },
+            verifyIsGeoJson: function (data) {
+                // A quick and not very sophisticated check to see if the data
+                // is 'probably' geojson
+                if (data === undefined) {
+                    return false;
+                }
+                if (data.hasOwnProperty("type")) {
+                    if (data.type === "FeatureCollection") {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            selectProjection: function (layer, proj, width, height) {
+                var projection;
+                switch (proj) {
+                    case  "azimuthal" :
+                        projection = d3.geo.azimuthal()
+                            .scale(380)
+                            .origin([-71.03, 42.37])
+                            .mode("orthographic")
+                            .translate([640, 400]);
+                        break;
+                    case "conicConformal" :
+                        projection = d3.geo.conicConformal()
+                            .rotate([0, 0])
+                            .center([0, 38])
+                            .parallels([29.5, 45.5])
+                            .scale(1000)
+                            .translate([width / 2, height / 2])
+                            .precision(.1);
+                        break;
+                    case "conicEqualArea":
+                        projection = d3.geo.conicEqualArea()
+                            .rotate([0, 0])
+                            .center([0, 38])
+                            .parallels([29.5, 45.5])
+                            .scale(1000)
+                            .translate([width / 2, height / 2])
+                            .precision(.1);
+                        break;
+                    case "equirectangular":
+                        projection = d3.geo.equirectangular();
+                        break;
+                    case "albersUSA" :
+                        projection = d3.geo.albersUsa()
+                            .translate([width / 2, height / 2]);
+                        break;
+                    case "albers" :
+                        projection = d3.geo.albers();
+                        break;
+                    case "mercator" :
+                        projection = d3.geo.mercator()
+                            .translate([width / 2, height / 2])
+                            .scale(970);
+                        break;
+                    default :
+                        projection = d3.geo.mercator()
+                            .translate([width / 2, height / 2])
+                            .scale(970);
+                }
+                return projection;
             }
-        }
-        return false;
-    };
 
-    d3MapUtilities.selectProjection = function(layer, proj, width, height){
-        var projection;
-        switch(proj){
-            case  "azimuthal" :
-                projection = d3.geo.azimuthal()
-                    .scale(380)
-                    .origin([-71.03,42.37])
-                    .mode("orthographic")
-                    .translate([640, 400]);
-                break;
-            case "conicConformal" :
-                projection = d3.geo.conicConformal()
-                    .rotate([0, 0])
-                    .center([0, 38])
-                    .parallels([29.5, 45.5])
-                    .scale(1000)
-                    .translate([width / 2, height / 2])
-                    .precision(.1);
-                break;
-            case "conicEqualArea":
-                projection = d3.geo.conicEqualArea()
-                    .rotate([0, 0])
-                    .center([0, 38])
-                    .parallels([29.5, 45.5])
-                    .scale(1000)
-                    .translate([width / 2, height / 2])
-                    .precision(.1);
-                break;
-            case "equirectangular":
-                projection = d3.geo.equirectangular();
-                break;
-            case "albersUSA" :
-                projection = d3.geo.albersUsa()
-                    .translate([width / 2, height / 2]);
-                break;
-            case "albers" :
-                projection = d3.geo.albers();
-                break;
-            case "mercator" :
-                projection = d3.geo.mercator()
-                    .translate([width/2, height/2])
-                    .scale(970);
-                break;
-            default :
-                projection = d3.geo.mercator()
-                    .translate([width/2, height/2])
-                    .scale(970);
-        }
-        return projection;
-    };
+        };
+    }]);
 
-    d3MapModule.directive('d3map', function(){
+    d3MapModule.directive('d3map', ['d3MapUtilities', function (d3MapUtilities) {
         return {
             restrict: 'EA',
             scope: {
@@ -132,7 +146,7 @@
                 margin: '&',
                 color: '&',
                 x: '&',
-                y: '&',    
+                y: '&',
                 callback: '&',
                 pan: '=',
                 zoomto: '='
@@ -209,7 +223,7 @@
                 });
             }
         }
-    })
+    }])
 
 })(window.angular, window.d3);
 
