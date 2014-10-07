@@ -1,5 +1,5 @@
 /*  name        : angular-d3geo-directives
- *  version     : 0.0.1
+ *  version     : 0.0.2
  *  license     : MIT
  *  description : Angular directive for creating D3 vector maps with geojson.
  *                Most of this code can be found in D3 examples.  It has been
