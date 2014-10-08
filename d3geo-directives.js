@@ -20,14 +20,15 @@
                     var b = d3.geo.bounds(d);
                     bounds.push(b);
                 });
-                d3MapUtilities.zoomToLayersBox(layer, d3MapUtilities.determineBoundingBox(bounds), projection, height, width);
+                this.zoomToLayersBox(layer, this.determineBoundingBox(bounds), projection, height, width);
             },
             zoomToLayersBox: function (layer, box, projection, height, width) {
                 var b = [];
                 b.push(projection([box[0][0], box[0][1]]));
                 b.push(projection([box[1][0], box[1][1]]));
                 var factor = .95;
-                var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width, Math.abs((b[1][1] - b[0][1])) / height);
+                var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width,
+                        Math.abs((b[1][1] - b[0][1])) / height);
                 var translate = -(b[1][0] + b[0][0]) / 2 + "," + -(b[1][1] + b[0][1]) / 2;
                 layer.transition().duration(750).attr("transform",
                     "translate(" + projection.translate() + ")"
@@ -126,8 +127,17 @@
                             .scale(970);
                 }
                 return projection;
+            },
+            guid :function() {
+                //http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
+                function s4() {
+                    return Math.floor((1 + Math.random()) * 0x10000)
+                        .toString(16)
+                        .substring(1);
+                }
+                return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+                        s4() + '-' + s4() + s4() + s4();
             }
-
         };
     }]);
 
@@ -216,7 +226,123 @@
                 });
             }
         }
-    }])
+    }]);
+
+    d3MapModule.directive('d3multimap', ['d3MapUtilities', function (d3MapUtilities) {
+        return {
+            restrict: 'EA',
+            scope: {
+                layers: '=',
+                projection: '=',
+                width: '=',
+                height: '=',
+                pan: '=',
+                index:'@'
+
+            },
+            template: "<div></div>",
+            link: function(scope, element, attrs) {
+
+                var svg;
+                var path;
+                var projection;
+
+                var layerCollection = [];
+
+                var geoLayer = {
+                    geojson:{},
+                    symbol:{},
+                    hoverSymbol:{},
+                    zoomTo: false
+                };
+
+                var redraw = function() {
+                    if (scope.pan){
+                        svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+                    }
+                };
+
+                var applyStyle = function(el, style){
+                    d3.select(el.parentNode.appendChild(el))
+                        .style({'stroke':style.stroke})
+                        .style({'fill': style.color})
+                        .style({'opacity': style.opacity})
+                        .style({'stroke-width': style.strokeWidth});
+                };
+
+                scope.$watchCollection('layers', function (newValue, oldValue) {
+
+                    if ( newValue !== oldValue ) {
+                        //layerCollection.push(newValue);
+                    }
+
+                    var layer;
+
+                    if (newValue.length > 0){
+                        for (var i = 0 ; i < newValue.length; i++){
+                            if (! newValue[i].id){
+                                layer =  newValue[i];
+                                layer.id = d3MapUtilities.guid();
+                            }
+                        }
+                    }
+                    else{
+                        return;
+                    }
+
+                    if (d3MapUtilities.verifyIsGeoJson(layer.geojson) == false) {return;}
+
+                    if (svg == null) {
+                        svg = d3.select(element.find("div")[0])
+                            .append("svg")
+                            .attr("width", scope.width)
+                            .attr("height", scope.height)
+                            .call(d3.behavior.zoom().on("zoom", redraw))
+                            .append("g");
+                    }
+
+
+                    var d3Layer = svg.selectAll(".country").data(layer.geojson.features);
+
+                    projection = d3MapUtilities.selectProjection(d3Layer, attrs.projection, attrs.width, attrs.height);
+
+                    path = d3.geo.path().projection(projection);
+
+                    var style = attrs.symbols || {color:'black', opacity:.7, stroke:'#67C8FF', strokeWidth:.4};
+                    var selectionStyle = attrs.hoversymbols || {color:'black', opacity:1, stroke:'#67C8FF', strokeWidth:5};
+
+                    d3Layer
+                        .enter()
+                        .insert("path")
+                        .attr("class", "country")
+                        //.attr("title", function(d,i) {return d.properties[$scope.selectedPackage.nameField]; })
+                        .attr("d", path)
+                        .style("fill", function(d, i) {return  style.color;})
+                        .style("opacity", function(d, i){return style.opacity})
+                        .style("stroke", function(d, i){return style.stroke;})
+                        .style("stroke-width", function(d, i){return style.strokeWidth;});
+
+
+                    d3Layer
+                        .on("mousemove", function(d){
+                        })
+                        .on("mouseenter", function(d,i) {
+                            applyStyle(this,selectionStyle);
+                        })
+                        .on("mouseout",  function(d,i) {
+                            applyStyle(this,style);
+                        })
+                        .on("click", function(d,i){
+                        });
+
+                    if (layer.zoomTo) {
+                        d3MapUtilities.zoomToLayer(d3Layer, path, projection, scope.height, scope.width);
+                    }
+
+                });
+            }
+        }
+    }]);
 
 })(window.angular, window.d3);
 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html ng-app="d3GeoDirectives">
+<head>
+    <meta chartype='utf8'>
+    <title>Angular D3Geo Directives</title>
+</head>
+<body>
+
+
+<div ng-controller='MainCtrl'>
+    <d3multimap
+            layers="data"
+            projection=mercator
+            height=600
+            width=1000
+            pan=true
+            >
+    </d3multimap>
+</div>
+
+<script src='../libs/d3.min.js'></script>
+<script src='../libs/angular.js'></script>
+<script src='../d3geo-directives.js'></script>
+<script>
+    var mapApp = angular.module('d3GeoDirectives', ['d3MapModule']);
+
+    mapApp.service('dataService', function( $http, $q ){
+        function getData(url) {
+            var request = $http({
+                method: "get",
+                url: url,
+                params: {
+                    action: "get"
+                }
+            });
+            return( request.then( handleSuccess, handleError ) );
+        }
+
+        function handleError(response) {
+            if (! angular.isObject( response.data ) || ! response.data.message) {
+                return( $q.reject( "No data for you!" ));
+            }
+            return($q.reject(response.data.message));
+        }
+
+        function handleSuccess( response ) {
+            return( response.data );
+        }
+
+        return {get:getData} ;
+    });
+
+    mapApp.controller('MainCtrl', function($scope, dataService) {
+        $scope.layers = [];
+        $scope.data = [];
+        $scope.style = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
+
+
+        loadRemoteData("../data/conus.geojson");
+        loadRemoteData("../data/south-america.geojson");
+
+        function loadRemoteData(url) {
+            dataService.get(url).then(
+                    function( data ) {
+                        applyRemoteData( data );
+                    });
+        }
+
+        function applyRemoteData(data){
+            var layer = {};
+            layer.geojson = data;
+            layer.style = $scope.style;
+            layer.zoomTo = true;
+            $scope.data.push(layer);
+           // $scope.data = $scope.layers;
+        }
+    });
+
+
+
+
+
+
+</script>
+</body>
+</html>   
