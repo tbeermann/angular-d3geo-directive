@@ -20,7 +20,7 @@
                     var b = d3.geo.bounds(d);
                     bounds.push(b);
                 });
-                d3MapUtilities.zoomToLayersBox(layer, d3MapUtilities.determineBoundingBox(bounds), projection, height, width);
+                this.zoomToLayersBox(layer, this.determineBoundingBox(bounds), projection, height, width);
             },
             zoomToLayersBox: function (layer, box, projection, height, width) {
                 var b = [];
