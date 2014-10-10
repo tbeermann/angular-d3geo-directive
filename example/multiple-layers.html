@@ -8,12 +8,19 @@
 
 
 <div ng-controller='MainCtrl'>
+    <input type="button" value="Load South America" ng-click="loadLayer('../data/south-america.geojson', 'South America')" />
+    <br/>
+    <input type="button" value="Load USA" ng-click="loadLayer('../data/conus.geojson', 'USA')" />
+    <br/>
+    <input type="button" value="Load Mexico" ng-click="loadLayer('../data/mexico.geojson', 'Mexico')" />
+    <br/>
     <d3multimap
             layers="data"
             projection=mercator
             height=600
             width=1000
             pan=true
+            onclick="onclick"
             >
     </d3multimap>
 </div>
@@ -53,26 +60,34 @@
     mapApp.controller('MainCtrl', function($scope, dataService) {
         $scope.layers = [];
         $scope.data = [];
-        $scope.style = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
+        $scope.symbols = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
 
+        $scope.onclick = function(d,i){
+            alert(JSON.stringify(d));
+        }
 
-        loadRemoteData("../data/conus.geojson");
-        loadRemoteData("../data/south-america.geojson");
+        $scope.loadLayer = function(url){
+            loadRemoteData( url );
+        };
 
-        function loadRemoteData(url) {
+        var style = {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+
+        loadRemoteData("../data/afghanistan.geojson", 'afghanistan', style);
+
+        function loadRemoteData(url, name, style) {
             dataService.get(url).then(
                     function( data ) {
-                        applyRemoteData( data );
+                        applyRemoteData( data, name, style );
                     });
         }
 
-        function applyRemoteData(data){
+        function applyRemoteData(data, name, symbols){
             var layer = {};
             layer.geojson = data;
-            layer.style = $scope.style;
+            layer.symbols = symbols || $scope.style;
             layer.zoomTo = true;
+            layer.name = name;
             $scope.data.push(layer);
-           // $scope.data = $scope.layers;
         }
     });
 
