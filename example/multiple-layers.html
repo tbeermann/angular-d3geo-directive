@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html ng-app="d3GeoDirectives">
+<head>
+    <meta chartype='utf8'>
+    <title>Angular D3Geo Directives</title>
+</head>
+<body>
+
+
+<div ng-controller='MainCtrl'>
+    <input type="button" value="Load South America" ng-click="loadLayer('../data/south-america.geojson', 'South America')" />
+    <br/>
+    <input type="button" value="Load USA" ng-click="loadLayer('../data/conus.geojson', 'USA')" />
+    <br/>
+    <input type="button" value="Load Mexico" ng-click="loadLayer('../data/mexico.geojson', 'Mexico')" />
+    <br/>
+    <d3multimap
+            layers="data"
+            projection=mercator
+            height=600
+            width=1000
+            pan=true
+            onclick="onclick"
+            >
+    </d3multimap>
+</div>
+
+<script src='../libs/d3.min.js'></script>
+<script src='../libs/angular.js'></script>
+<script src='../d3geo-directives.js'></script>
+<script>
+    var mapApp = angular.module('d3GeoDirectives', ['d3MapModule']);
+
+    mapApp.service('dataService', function( $http, $q ){
+        function getData(url) {
+            var request = $http({
+                method: "get",
+                url: url,
+                params: {
+                    action: "get"
+                }
+            });
+            return( request.then( handleSuccess, handleError ) );
+        }
+
+        function handleError(response) {
+            if (! angular.isObject( response.data ) || ! response.data.message) {
+                return( $q.reject( "No data for you!" ));
+            }
+            return($q.reject(response.data.message));
+        }
+
+        function handleSuccess( response ) {
+            return( response.data );
+        }
+
+        return {get:getData} ;
+    });
+
+    mapApp.controller('MainCtrl', function($scope, dataService) {
+        $scope.layers = [];
+        $scope.data = [];
+        $scope.symbols = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
+
+        $scope.onclick = function(d,i){
+            alert(JSON.stringify(d));
+        }
+
+        $scope.loadLayer = function(url){
+            loadRemoteData( url );
+        };
+
+        var style = {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+
+        loadRemoteData("../data/afghanistan.geojson", 'afghanistan', style);
+
+        function loadRemoteData(url, name, style) {
+            dataService.get(url).then(
+                    function( data ) {
+                        applyRemoteData( data, name, style );
+                    });
+        }
+
+        function applyRemoteData(data, name, symbols){
+            var layer = {};
+            layer.geojson = data;
+            layer.symbols = symbols || $scope.style;
+            layer.zoomTo = true;
+            layer.name = name;
+            $scope.data.push(layer);
+        }
+    });
+
+
+
+
+
+
+</script>
+</body>
+</html>   
