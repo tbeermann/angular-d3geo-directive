@@ -13,7 +13,8 @@
     <input type="button" value="Load USA" ng-click="loadLayer('../data/conus.geojson', 'USA')" />
     <br/>
     <input type="button" value="Load Mexico" ng-click="loadLayer('../data/mexico.geojson', 'Mexico')" />
-    <br/>
+    <br/><br/>
+    <div style="border: 1px solid">
     <d3multimap
             layers="data"
             projection=mercator
@@ -23,6 +24,7 @@
             onclick="onclick"
             >
     </d3multimap>
+    </div>
 </div>
 
 <script src='../libs/d3.min.js'></script>

@@ -13,7 +13,6 @@
 
     d3MapModule.factory("d3MapUtilities", [function () {
         return {
-
             zoomToLayer: function (svg,layer, path, projection, height, width) {
                 var bounds = [];
                 layer.each(function (d) {
@@ -34,7 +33,6 @@
                     "translate(" + projection.translate() + ")"
                         + "scale(" + scale.toString() + ")"
                         + "translate(" + translate.toString() + ")");
-
                 //svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
             },
             determineBoundingBox: function (data) {
@@ -239,8 +237,9 @@
             },
             template: "<div></div>",
             link: function(scope, element, attrs) {
-                scope.svg;
-                scope.projection;
+                scope.svg = null;
+                scope.projection = null;
+                scope.scale = {scale:null, wasScaled:false};
 
                 scope.layerCollection = [];
 
@@ -316,8 +315,7 @@
                         });
 
                     if (layer.zoomTo) {
-                        d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width);
-
+                        scope.scale = d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width);
                     }
                 }
 
@@ -340,7 +338,7 @@
 
                     if (d3MapUtilities.verifyIsGeoJson(layer.geojson) == false) {return;}
 
-                    if (scope.svg === undefined) {
+                    if (scope.svg === null) {
                         scope.svg = d3.select(element.find("div")[0])
                             .append("svg")
                             .attr("width", scope.width)
