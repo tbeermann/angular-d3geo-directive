@@ -4,7 +4,7 @@ mapApp.service('dataService', function( $http, $q ){
     function getData() {
         var request = $http({
             method: "get",
-            url: "../data/world.geojson",
+            url: "../data/afghanistan.geojson",
             params: {
                 action: "get"
             }
