@@ -13,15 +13,15 @@
 
     d3MapModule.factory("d3MapUtilities", [function () {
         return {
-            zoomToLayer: function (svg,layer, path, projection, height, width) {
+            zoomToLayer: function (svg,layer, path, projection, height, width, zoom) {
                 var bounds = [];
                 layer.each(function (d) {
                     var b = d3.geo.bounds(d);
                     bounds.push(b);
                 });
-                return this.zoomToLayersBox(svg,layer, this.determineBoundingBox(bounds), projection, height, width);
+                return this.zoomToLayersBox(svg,layer, this.determineBoundingBox(bounds), projection, height, width, zoom);
             },
-            zoomToLayersBox: function (svg,layer, box, projection, height, width) {
+            zoomToLayersBox: function (svg,layer, box, projection, height, width, zoom) {
                 var b = [];
                 b.push(projection([box[0][0], box[0][1]]));
                 b.push(projection([box[1][0], box[1][1]]));
@@ -36,7 +36,11 @@
                     + "scale(" + scale.toString() + ")"
                     + "translate(" + translateStr + ")";
 
-                svg.transition().duration(750).attr("transform",transform);
+              //  svg.transition().duration(750).attr("transform",transform);
+
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.translate(translate).scale(scale).event);
 
                 console.log('zoomToLayersBox  scale : ' + scale.toString() + ' translate : ' + translateStr);
 
@@ -77,7 +81,7 @@
                 }
                 return false;
             },
-            selectProjection: function (layer, proj, width, height) {
+            selectProjection: function (proj, width, height) {
                 var projection;
                 switch (proj) {
                     case  "azimuthal" :
@@ -140,93 +144,6 @@
         };
     }]);
 
-    d3MapModule.directive('d3map', ['d3MapUtilities', function (d3MapUtilities) {
-        return {
-            restrict: 'EA',
-            scope: {
-                geojson: '=',
-                symbols: '=',
-                hoversymbols: '=',
-                projection: '=',
-                width: '=',
-                height: '=',
-                pan: '=',
-                zoomto: '='
-            },
-            template: "<div></div>",
-            link: function(scope, element, attrs) {
-
-                var svg;
-                var layer;
-                var path;
-                var projection;
-
-                var redraw = function() {
-                    if (scope.pan){
-                        svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-                    }
-                };
-
-                var applyStyle = function(el, style){
-                    d3.select(el.parentNode.appendChild(el))
-                        .style({'stroke':style.stroke})
-                        .style({'fill': style.color})
-                        .style({'opacity': style.opacity})
-                        .style({'stroke-width': style.strokeWidth});
-                };
-
-                scope.$watch('geojson', function () {
-
-                    if (d3MapUtilities.verifyIsGeoJson(scope.geojson) == false) {return;}
-
-                    svg = d3.select(element.find("div")[0])
-                        .append("svg")
-                        .attr("width", scope.width)
-                        .attr("height", scope.height)
-                        .call(d3.behavior.zoom().on("zoom", redraw))
-                        .append("g");
-
-                    layer = svg.selectAll(".country").data(scope.geojson.features);
-
-                    projection = d3MapUtilities.selectProjection(layer, attrs.projection, attrs.width, attrs.height);
-
-                    path = d3.geo.path().projection(projection);
-
-                    var style = attrs.symbols || {color:'black', opacity:.7, stroke:'#67C8FF', strokeWidth:.4};
-                    var selectionStyle = attrs.hoversymbols || {color:'black', opacity:1, stroke:'#67C8FF', strokeWidth:5};
-
-                    layer
-                        .enter()
-                        .insert("path")
-                        .attr("class", "country")
-                        //.attr("title", function(d,i) {return d.properties[$scope.selectedPackage.nameField]; })
-                        .attr("d", path)
-                        .style("fill", function(d, i) {return  style.color;})
-                        .style("opacity", function(d, i){return style.opacity})
-                        .style("stroke", function(d, i){return style.stroke;})
-                        .style("stroke-width", function(d, i){return style.strokeWidth;});
-
-                    layer
-                        .on("mousemove", function(d){
-                        })
-                        .on("mouseenter", function(d,i) {
-                            applyStyle(this,selectionStyle);
-                        })
-                        .on("mouseout",  function(d,i) {
-                            applyStyle(this,style);
-                        })
-                        .on("click", function(d,i){
-                        });
-
-                    if (scope.zoomto) {
-                        d3MapUtilities.zoomToLayer(layer, path, projection, scope.height, scope.width);
-                    }
-
-                });
-            }
-        }
-    }]);
-
     d3MapModule.directive('d3multimap', ['d3MapUtilities', function (d3MapUtilities) {
         return {
             restrict: 'EA',
@@ -246,7 +163,7 @@
             link: function(scope, element, attrs) {
                 scope.svg = null;
                 scope.projection = null;
-                scope.zoomStatus = null;
+                scope.path = null;
                 scope.zoom = d3.behavior.zoom()
                     .translate([0, 0])
                     .scale(1)
@@ -254,35 +171,13 @@
                     .on("zoom", zoomed);
 
                 scope.layerCollection = [];
-                scope.g;
+                scope.g = null;
 
                 scope.geoLayer = {
                     geojson:{},
                     symbol:{},
                     hoverSymbol:{},
                     zoomTo: false
-                };
-
-                scope.redraw = function() {
-                    if (scope.pan){
-                        if (scope.zoomStatus.wasZoomed){
-                           // scope.svg.attr("transform", scope.zoom.transform);
-                            /* SET NEW ZOOM POINT */
-                            //Does not have the desired effect
-                            scope.zoom.scale(scope.zoomStatus.scale);
-                            scope.zoom.translate(scope.zoomStatus.translate);
-                            console.log('SET redraw  scale : ' + scope.zoomStatus.scale.toString() + ' translate : ' + scope.zoomStatus.translate.toString());
-                            scope.zoomStatus.wasZoomed = false;
-                        }
-
-                        else {
-
-                            console.log('redraw  scale : ' + d3.event.scale + ' translate : ' + d3.event.translate);
-
-                            scope.svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-                        }
-
-                    }
                 };
 
                 scope.applyStyle = function(el, style){
@@ -295,39 +190,28 @@
 
                 scope.renderLayer = function(layer) {
 
-                    var className = '.' + layer.name + "-" + d3MapUtilities.guid();
 
-                    var d3Layer = scope.svg.selectAll(className).data(layer.geojson.features);
-                    layer.d3Layer = d3Layer;
 
-                    scope.projection = d3MapUtilities.selectProjection(d3Layer, attrs.projection, attrs.width, attrs.height);
+                    scope.g.selectAll("path")
+                        .data(layer.geojson.features)
+                        .enter().append("path")
+                        .attr("d", scope.path)
+                        .attr("class", layer.className)
 
-                    layer.path = d3.geo.path().projection(scope.projection);
-
-                    var style = layer.symbols || {color: 'black', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
-                    var selectionStyle = layer.hoversymbols || {color: 'black', opacity: 1, stroke: '#67C8FF', strokeWidth: 5};
-
-                    d3Layer
-                        .enter()
-                        .insert("path")
-                        .attr("class", className)
-                        //.attr("title", function(d,i) {return d.properties[$scope.selectedPackage.nameField]; })
-                        .attr("d", layer.path)
                         .style("fill", function (d, i) {
-                            return  style.color;
+                            return  layer.style.color;
                         })
                         .style("opacity", function (d, i) {
-                            return style.opacity
+                            return layer.style.opacity
                         })
                         .style("stroke", function (d, i) {
-                            return style.stroke;
+                            return layer.style.stroke;
                         })
                         .style("stroke-width", function (d, i) {
-                            return style.strokeWidth;
+                            return layer.style.strokeWidth;
                         });
 
-
-                    d3Layer
+                    scope.g
                         .on("mousemove", function (d) {
                             if (scope.mousemove) scope.mousemove(d, i);
                         })
@@ -343,10 +227,45 @@
                             if (scope.onclick) scope.onclick(d, i);
                         });
 
-                    if (layer.zoomTo) {
-                        scope.zoomStatus = scope.scale = d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width);
-                    }
+//                    if (layer.zoomTo) {
+//                        d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width, scope.zoom);
+//                    }
+
+                    testZoom( scope.g.selectAll("path"));
+
+
                 };
+
+                function testZoom(g) {
+
+                    var bounds = [];
+                    g.each(function (d) {
+                        var b = d3.geo.bounds(d);
+                        bounds.push(b);
+                    });
+
+
+                    //var bounds = path.bounds(d);
+                    var    dx = bounds[1][0] - bounds[0][0];
+                    var    dy = bounds[1][1] - bounds[0][1];
+                    var    x = (bounds[0][0] + bounds[1][0]) / 2;
+                    var    y = (bounds[0][1] + bounds[1][1]) / 2;
+                    var    scale = .9 / Math.max(dx / scope.width, dy / scope.height);
+                    var    translate = [scope.width / 2 - scale * x, scope.height / 2 - scale * y];
+
+                    scope.svg.transition()
+                        .duration(750)
+                        .call(scope.zoom.translate(translate).scale(scale).event);
+                }
+
+                function zoomed() {
+                    if (scope.g) {
+//                    scope.g.style("stroke-width", 1.5 / d3.event.scale + "px");
+                        scope.g.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+                    }
+                    console.log("zoomed");
+
+                }
 
                 scope.$watchCollection('layers', function (newValue, oldValue) {
 
@@ -372,9 +291,20 @@
                             .append("svg")
                             .attr("width", scope.width)
                             .attr("height", scope.height)
-                            .call(scope.zoom.on("zoom", scope.redraw))
-                            .append("g");
+                            .call(scope.zoom)
+                            .call(scope.zoom.event);
+
+
+                        scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
+
+                        scope.path = d3.geo.path().projection(scope.projection);
+
+                        scope.g = scope.svg.append("g");
                     }
+
+                    layer.className = '.' + layer.name + "-" + d3MapUtilities.guid();
+                    layer.style =  {color: 'black', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+                    layer.hoversymbols = layer.hoversymbols || {color: 'black', opacity: 1, stroke: '#67C8FF', strokeWidth: 5};
 
                     scope.renderLayer(layer);
                 });
