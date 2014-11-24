@@ -23,7 +23,7 @@
             fill: orange;
         }
 
-        .mesh {
+        .MEXICO {
             fill: none;
             stroke: #fff;
             stroke-linecap: round;
@@ -41,22 +41,29 @@
 
 <script>
 
-    var width = 960,
-            height = 800,
-            active = d3.select(null);
+    var selectLayer = function(path, name, zoom){
 
-//    var projection = d3.geo.albersUsa()
-//            .scale(1000)
-//            .translate([width / 2, height / 2]);
+        d3.json(path, function(error, geojson){
+            loadLayer(geojson, name, zoom);
+        });
+
+
+    };
+
+    var width = 960;
+    var height = 800;
+    var active = d3.select(null);
+
+    var layers = [];
 
     projection = d3.geo.mercator()
             .translate([width / 2, height / 2])
             .scale(970);
 
     var zoom = d3.behavior.zoom()
-            .translate([0, 0])
-            .scale(1)
-            .scaleExtent([1, 8])
+//            .translate([0, 0])
+//            .scale(1)
+//            .scaleExtent([0, 0])
             .on("zoom", zoomed);
 
     var path = d3.geo.path()
@@ -73,29 +80,37 @@
             .attr("height", height)
             .on("click", reset);
 
-    var g = svg.append("g");
+    //var g = svg.append("g");
 
     svg.call(zoom) // delete this line to disable free zooming
             .call(zoom.event);
 
-    d3.json("/data/us.json", function(error, us) {
-        g.selectAll("path")
-                .data(topojson.feature(us, us.objects.states).features)
-                .enter().append("path")
-                .attr("d", path)
-                .attr("class", "feature")
-                .on("click", clicked);
-
-        d3.json("/data/mexico.geojson", function(error, geojson){
-            g.append("path")
-                .datum(geojson)
-                .attr("class", "mesh")
-                .attr("d", path);
-        });
-
+    d3.json("/data/world.geojson", function(error, geojson){
+        loadLayer(geojson, "world", true);
     });
 
-    var layerZoom = function(data){
+    var numLayers = 0;
+
+    function loadLayer(geojson, className, zoomToLayer){
+
+        var d3Layer = svg.insert("g").selectAll(className).data(geojson.features);
+
+        d3Layer
+            .enter()
+            .insert("path")
+                .attr("class", className)
+            //.attr("title", function(d,i) {return d.properties[$scope.selectedPackage.nameField]; })
+                .attr("d", path)
+                .on("click", clicked);
+
+        if (zoomToLayer){
+            var b = util.getDataBounds(d3Layer, projection, height, width);
+//            zoomToBounds([1500, 600], 1);
+            zoomToBounds(b.translate, b.scale);
+
+        }
+
+
 
     }
 
@@ -103,18 +118,43 @@
         if (active.node() === this) return reset();
         active.classed("active", false);
         active = d3.select(this).classed("active", true);
+        // zoom to the selected (clicked) feature
+        getCurrentBounds();
+        zoomToFeature(d);
+    }
 
-        var bounds = path.bounds(d),
-                dx = bounds[1][0] - bounds[0][0],
-                dy = bounds[1][1] - bounds[0][1],
-                x = (bounds[0][0] + bounds[1][0]) / 2,
-                y = (bounds[0][1] + bounds[1][1]) / 2,
-                scale = .9 / Math.max(dx / width, dy / height),
-                translate = [width / 2 - scale * x, height / 2 - scale * y];
+    function zoomToFeature(d){
+        // get feature translate and scale
+        var featureBounds = getFeatureBounds(d);
+        // use those data to zoom to area
+        zoomToBounds(featureBounds.translate, featureBounds.scale);
 
+    }
+
+    var currentBounds = null;
+
+    function getCurrentBounds(){
+        currentBounds = {scale:zoom.scale(), translate:zoom.translate()};
+
+    }
+
+    function getFeatureBounds(d){
+        var bounds = path.bounds(d);
+        var dx = bounds[1][0] - bounds[0][0];
+        var dy = bounds[1][1] - bounds[0][1];
+        var x = (bounds[0][0] + bounds[1][0]) / 2;
+        var y = (bounds[0][1] + bounds[1][1]) / 2;
+
+        var scale = .9 / Math.max(dx / width, dy / height);
+        var translate = [width / 2 - scale * x, height / 2 - scale * y];
+        return {scale:scale, translate:translate};
+
+    }
+
+    function zoomToBounds(translate, scale) {
         svg.transition()
-                .duration(750)
-                .call(zoom.translate(translate).scale(scale).event);
+            .duration(750)
+            .call(zoom.translate(translate).scale(scale).event);
     }
 
     var previous = [];
@@ -122,17 +162,15 @@
     function reset() {
         active.classed("active", false);
         active = d3.select(null);
-
-
-
-        svg.transition()
-                .duration(750)
-                .call(zoom.translate([2000, 500]).scale(1).event);
+        if (currentBounds) {
+            zoomToBounds(currentBounds.translate, currentBounds.scale);
+        }
     }
 
     function zoomed() {
-        g.style("stroke-width", 1.5 / d3.event.scale + "px");
-        g.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+       var gg = svg.selectAll("g");
+        gg.style("stroke-width", 1.5 / d3.event.scale + "px");
+        gg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     }
 
     // If the drag behavior prevents the default click,
@@ -140,6 +178,71 @@
     function stopped() {
         if (d3.event.defaultPrevented) d3.event.stopPropagation();
     }
+
+    var util = {
+        getDataBounds: function (layer, projection, height, width) {
+            var bounds = [];
+            layer.each(function (d) {
+                var b = d3.geo.bounds(d);
+                bounds.push(b);
+            });
+            return this.zoomToLayersBox(layer, this.determineBoundingBox(bounds), projection, height, width);
+        },
+        zoomToLayersBox: function (layer, box, projection, height, width) {
+            var b = [];
+            b.push(projection([box[0][0], box[0][1]]));
+            b.push(projection([box[1][0], box[1][1]]));
+            var factor = .95;
+
+            var dx = b[1][0] - b[0][0];
+            var dy = b[1][1] - b[0][1];
+            var x = (b[0][0] + b[1][0]) / 2;
+            var y = (b[0][1] + b[1][1]) / 2;
+
+            var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width,
+                            Math.abs((b[1][1] - b[0][1])) / height);
+
+           // var translate = [-(b[1][0] + b[0][0]) / 2 , -(b[1][1] + b[0][1]) / 2];
+
+            var translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            return {scale:scale, translate:translate};
+
+
+        },
+        determineBoundingBox: function (data) {
+            var minX = data[0][0][0];
+            var minY = data[0][0][1];
+            var maxX = data[0][1][0];
+            var maxY = data[0][1][1];
+            var l = data.length;
+            for (var i = 1; i < l; i++) {
+                var d = data[i];
+                var minXX = d[0][0];
+                if (minX > minXX) {
+                    minX = minXX;
+                }
+                var minYY = d[0][1];
+                if (minY > minYY) {
+                    minY = minYY;
+                }
+                var maxXX = d[1][0];
+                if (maxX < maxXX) {
+                    maxX = maxXX;
+                }
+                var maxYY = d[1][1];
+                if (maxY < maxYY) {
+                    maxY = maxYY;
+                }
+            }
+            return [
+                [minX, minY],
+                [maxX, maxY]
+            ];
+        }
+    }
+
+
 
 </script>
 

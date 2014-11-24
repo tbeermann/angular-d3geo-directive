@@ -227,11 +227,11 @@
                             if (scope.onclick) scope.onclick(d, i);
                         });
 
-//                    if (layer.zoomTo) {
-//                        d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width, scope.zoom);
-//                    }
+                    if (layer.zoomTo) {
+                        d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width, scope.zoom);
+                    }
 
-                    testZoom( scope.g.selectAll("path"));
+                    //testZoom( scope.g.selectAll("path"));
 
 
                 };
