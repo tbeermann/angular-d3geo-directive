@@ -312,12 +312,15 @@
 
                     if (scope.svg === null) {
 
-                        scope.svg = d3.select("body").append("svg")
+                        scope.svg =
+                            d3.select(element.find("div")[0])
+                            .append("svg")
                             .attr("width", scope.width)
                             .attr("height", scope.height)
                             .on("click", stopped, true);
 
-                        scope.svg.append("rect")
+                        scope.svg
+                            .append("rect")
                             .attr("class", "background")
                             .attr("width", scope.width)
                             .attr("height", scope.height)
@@ -326,7 +329,8 @@
                             .on("click", reset);
 
 
-                        scope.svg.call(scope.zoom) // delete this line to disable free zooming
+                        scope.svg
+                            .call(scope.zoom) // delete this line to disable free zooming
                             .call(scope.zoom.event);
 
                         scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
