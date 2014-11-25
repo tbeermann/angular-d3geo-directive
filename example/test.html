@@ -31,6 +31,14 @@
             fill: orange;
         }
 
+        .germany {
+            fill: none;
+            stroke: #fff;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: red;
+        }
+
     </style>
 
 
@@ -38,8 +46,16 @@
 
 </head>
 <body>
+<input type='button' onclick='selectLayer("/data/mexico.geojson", "MEXICO", true);' value='MEXICO' />
+<br/>
+<input type='button' onclick='selectLayer("/data/conus.geojson", "feature", true);' value='US' />
+<br/>
+<input type='button' onclick='selectLayer("/data/germany-states.geojson", "germany", true);' value='germany' />
+
 
 <script>
+
+
 
     var selectLayer = function(path, name, zoom){
 
@@ -61,9 +77,6 @@
             .scale(970);
 
     var zoom = d3.behavior.zoom()
-//            .translate([0, 0])
-//            .scale(1)
-//            .scaleExtent([0, 0])
             .on("zoom", zoomed);
 
     var path = d3.geo.path()
@@ -80,14 +93,11 @@
             .attr("height", height)
             .on("click", reset);
 
-    //var g = svg.append("g");
 
     svg.call(zoom) // delete this line to disable free zooming
             .call(zoom.event);
 
-    d3.json("/data/world.geojson", function(error, geojson){
-        loadLayer(geojson, "world", true);
-    });
+    selectLayer("/data/world.geojson", "world", true);
 
     var numLayers = 0;
 
@@ -99,19 +109,13 @@
             .enter()
             .insert("path")
                 .attr("class", className)
-            //.attr("title", function(d,i) {return d.properties[$scope.selectedPackage.nameField]; })
                 .attr("d", path)
                 .on("click", clicked);
 
         if (zoomToLayer){
             var b = util.getDataBounds(d3Layer, projection, height, width);
-//            zoomToBounds([1500, 600], 1);
             zoomToBounds(b.translate, b.scale);
-
         }
-
-
-
     }
 
     function clicked(d) {
@@ -135,7 +139,6 @@
 
     function getCurrentBounds(){
         currentBounds = {scale:zoom.scale(), translate:zoom.translate()};
-
     }
 
     function getFeatureBounds(d){
