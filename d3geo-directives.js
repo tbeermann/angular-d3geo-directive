@@ -1,5 +1,5 @@
 /*  name        : angular-d3geo-directives
- *  version     : 0.0.2
+ *  version     : 0.0.3
  *  license     : MIT
  *  description : Angular directive for creating D3 vector maps with geojson.
  *                Most of this code can be found in D3 examples.  It has been
@@ -13,38 +13,35 @@
 
     d3MapModule.factory("d3MapUtilities", [function () {
         return {
-            zoomToLayer: function (svg,layer, path, projection, height, width, zoom) {
+            getDataBounds: function (layer, projection, height, width) {
                 var bounds = [];
                 layer.each(function (d) {
                     var b = d3.geo.bounds(d);
                     bounds.push(b);
                 });
-                return this.zoomToLayersBox(svg,layer, this.determineBoundingBox(bounds), projection, height, width, zoom);
+                return this.zoomToLayersBox(layer, this.determineBoundingBox(bounds), projection, height, width);
             },
-            zoomToLayersBox: function (svg,layer, box, projection, height, width, zoom) {
+            zoomToLayersBox: function (layer, box, projection, height, width) {
                 var b = [];
                 b.push(projection([box[0][0], box[0][1]]));
                 b.push(projection([box[1][0], box[1][1]]));
                 var factor = .95;
+
+                var dx = b[1][0] - b[0][0];
+                var dy = b[1][1] - b[0][1];
+                var x = (b[0][0] + b[1][0]) / 2;
+                var y = (b[0][1] + b[1][1]) / 2;
+
                 var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width,
                         Math.abs((b[1][1] - b[0][1])) / height);
-                var translate = [-(b[1][0] + b[0][0]) / 2 , -(b[1][1] + b[0][1]) / 2];
 
-                var translateStr = translate[0] + "," + translate[1];
+                // var translate = [-(b[1][0] + b[0][0]) / 2 , -(b[1][1] + b[0][1]) / 2];
 
-                var transform = "translate(" + projection.translate() + ")"
-                    + "scale(" + scale.toString() + ")"
-                    + "translate(" + translateStr + ")";
+                var translate = [width / 2 - scale * x, height / 2 - scale * y];
 
-              //  svg.transition().duration(750).attr("transform",transform);
+                return {scale:scale, translate:translate};
 
-                svg.transition()
-                    .duration(750)
-                    .call(zoom.translate(translate).scale(scale).event);
 
-                console.log('zoomToLayersBox  scale : ' + scale.toString() + ' translate : ' + translateStr);
-
-                return {wasZoomed:true, scale:scale, translate:translate, transform:transform, projection:projection};
             },
             determineBoundingBox: function (data) {
                 var minX = data[0][0][0];
@@ -55,13 +52,21 @@
                 for (var i = 1; i < l; i++) {
                     var d = data[i];
                     var minXX = d[0][0];
-                    if (minX > minXX) { minX = minXX; }
+                    if (minX > minXX) {
+                        minX = minXX;
+                    }
                     var minYY = d[0][1];
-                    if (minY > minYY) { minY = minYY; }
+                    if (minY > minYY) {
+                        minY = minYY;
+                    }
                     var maxXX = d[1][0];
-                    if (maxX < maxXX) { maxX = maxXX; }
+                    if (maxX < maxXX) {
+                        maxX = maxXX;
+                    }
                     var maxYY = d[1][1];
-                    if (maxY < maxYY) { maxY = maxYY; }
+                    if (maxY < maxYY) {
+                        maxY = maxYY;
+                    }
                 }
                 return [
                     [minX, minY],
@@ -165,13 +170,9 @@
                 scope.projection = null;
                 scope.path = null;
                 scope.zoom = d3.behavior.zoom()
-                    .translate([0, 0])
-                    .scale(1)
-                    .scaleExtent([1, 8])
                     .on("zoom", zoomed);
 
                 scope.layerCollection = [];
-                scope.g = null;
 
                 scope.geoLayer = {
                     geojson:{},
@@ -190,14 +191,13 @@
 
                 scope.renderLayer = function(layer) {
 
+                    layer.d3Layer = scope.svg.insert("g").selectAll(layer.className).data(layer.geojson.features);
 
-
-                    scope.g.selectAll("path")
-                        .data(layer.geojson.features)
-                        .enter().append("path")
-                        .attr("d", scope.path)
+                    layer.d3Layer
+                        .enter()
+                        .insert("path")
                         .attr("class", layer.className)
-
+                        .attr("d", scope.path)
                         .style("fill", function (d, i) {
                             return  layer.style.color;
                         })
@@ -210,8 +210,14 @@
                         .style("stroke-width", function (d, i) {
                             return layer.style.strokeWidth;
                         });
+                        //.on("click", clicked);
 
-                    scope.g
+                    if (layer.zoomTo){
+                        var b = d3MapUtilities.getDataBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
+                        zoomToBounds(b.translate, b.scale);
+                    }
+
+                    layer.d3Layer
                         .on("mousemove", function (d) {
                             if (scope.mousemove) scope.mousemove(d, i);
                         })
@@ -227,45 +233,63 @@
                             if (scope.onclick) scope.onclick(d, i);
                         });
 
-                    if (layer.zoomTo) {
-                        d3MapUtilities.zoomToLayer(scope.svg, layer.d3Layer, layer.path, scope.projection, scope.height, scope.width, scope.zoom);
-                    }
-
-                    //testZoom( scope.g.selectAll("path"));
-
-
                 };
 
-                function testZoom(g) {
+                function zoomToFeature(d){
+                    // get feature translate and scale
+                    var featureBounds = getFeatureBounds(d);
+                    // use those data to zoom to area
+                    zoomToBounds(featureBounds.translate, featureBounds.scale);
 
-                    var bounds = [];
-                    g.each(function (d) {
-                        var b = d3.geo.bounds(d);
-                        bounds.push(b);
-                    });
+                }
 
+                var currentBounds = null;
 
-                    //var bounds = path.bounds(d);
-                    var    dx = bounds[1][0] - bounds[0][0];
-                    var    dy = bounds[1][1] - bounds[0][1];
-                    var    x = (bounds[0][0] + bounds[1][0]) / 2;
-                    var    y = (bounds[0][1] + bounds[1][1]) / 2;
-                    var    scale = .9 / Math.max(dx / scope.width, dy / scope.height);
-                    var    translate = [scope.width / 2 - scale * x, scope.height / 2 - scale * y];
+                function getCurrentBounds(){
+                    currentBounds = {scale:zoom.scale(), translate:zoom.translate()};
+                }
 
+                function getFeatureBounds(d){
+                    var bounds = path.bounds(d);
+                    var dx = bounds[1][0] - bounds[0][0];
+                    var dy = bounds[1][1] - bounds[0][1];
+                    var x = (bounds[0][0] + bounds[1][0]) / 2;
+                    var y = (bounds[0][1] + bounds[1][1]) / 2;
+
+                    var scale = .9 / Math.max(dx / width, dy / height);
+                    var translate = [width / 2 - scale * x, height / 2 - scale * y];
+                    return {scale:scale, translate:translate};
+
+                }
+
+                function zoomToBounds(translate, scale) {
                     scope.svg.transition()
                         .duration(750)
                         .call(scope.zoom.translate(translate).scale(scale).event);
                 }
 
-                function zoomed() {
-                    if (scope.g) {
-//                    scope.g.style("stroke-width", 1.5 / d3.event.scale + "px");
-                        scope.g.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-                    }
-                    console.log("zoomed");
+                var previous = [];
 
+                function reset() {
+                    active.classed("active", false);
+                    active = d3.select(null);
+                    if (currentBounds) {
+                        zoomToBounds(currentBounds.translate, currentBounds.scale);
+                    }
                 }
+
+                function zoomed() {
+                    var gg = scope.svg.selectAll("g");
+                    gg.style("stroke-width", 1.5 / d3.event.scale + "px");
+                    gg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+                }
+
+                // If the drag behavior prevents the default click,
+                // also stop propagation so we don’t click-to-zoom.
+                function stopped() {
+                    if (d3.event.defaultPrevented) d3.event.stopPropagation();
+                }
+
 
                 scope.$watchCollection('layers', function (newValue, oldValue) {
 
@@ -287,19 +311,27 @@
                     if (d3MapUtilities.verifyIsGeoJson(layer.geojson) == false) {return;}
 
                     if (scope.svg === null) {
-                        scope.svg = d3.select(element.find("div")[0])
-                            .append("svg")
+
+                        scope.svg = d3.select("body").append("svg")
                             .attr("width", scope.width)
                             .attr("height", scope.height)
-                            .call(scope.zoom)
-                            .call(scope.zoom.event);
+                            .on("click", stopped, true);
 
+                        scope.svg.append("rect")
+                            .attr("class", "background")
+                            .attr("width", scope.width)
+                            .attr("height", scope.height)
+                            .style("fill", "white")
+                            .style("pointer-events", "all")
+                            .on("click", reset);
+
+
+                        scope.svg.call(scope.zoom) // delete this line to disable free zooming
+                            .call(scope.zoom.event);
 
                         scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
 
                         scope.path = d3.geo.path().projection(scope.projection);
-
-                        scope.g = scope.svg.append("g");
                     }
 
                     layer.className = '.' + layer.name + "-" + d3MapUtilities.guid();
