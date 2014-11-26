@@ -10,11 +10,12 @@
 <div ng-controller='MainCtrl'>
     <d3map
         layers="data"
-        projection=equirectangular
+        projection="projection"
         height=600
         width=1000
         zoomto=true
         pan=true
+        graticule="showGraticule"
         >
     </d3map>
 </div>

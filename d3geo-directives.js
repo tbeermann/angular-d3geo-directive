@@ -97,6 +97,14 @@
                             .translate([width / 2, height / 2])
                             .precision(.1);
                         break;
+                    case "orthographic" :
+                        projection = d3.geo.orthographic()
+                            .scale(475)
+                            .translate([width / 2, height / 2])
+                            .clipAngle(90)
+                            .precision(.1)
+                            .rotate([90, 0]);
+                        break;
                     case "conicConformal" :
                         projection = d3.geo.conicConformal()
                             .rotate([0, 0])
@@ -112,6 +120,13 @@
                             .center([0, 38])
                             .parallels([29.5, 45.5])
                             .scale(1000)
+                            .translate([width / 2, height / 2])
+                            .precision(.1);
+                        break;
+                    case "conicEquadistance" :
+                        projection = d3.geo.conicEquidistant()
+                            .center([0, 0])
+                            .scale(128)
                             .translate([width / 2, height / 2])
                             .precision(.1);
                         break;
@@ -159,6 +174,7 @@
                 width: '=',
                 height: '=',
                 pan: '=',
+                graticule: '=',
                 index:'@',
                 mousemove: '=',
                 mouseenter: '=',
@@ -168,11 +184,11 @@
             template: "<div></div>",
             link: function(scope, element, attrs) {
                 scope.svg = null;
-                scope.projection = null;
+                scope.d3projection = null;
                 scope.path = null;
                 scope.zoom = d3.behavior.zoom().on("zoom", zoomed);
                 scope.layerCollection = [];
-                scope.graticule;
+                scope.graticuleLayer;
                 // reference definition
                 scope.geoLayer = {
                     geojson:{},
@@ -233,19 +249,21 @@
                         }
 
                     if (layer.zoomTo){
-                        var b = d3MapUtilities.getLayerBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
+                        var b = d3MapUtilities.getLayerBounds(layer.d3Layer, scope.d3projection, scope.height, scope.width);
                         scope.zoomToBounds(b.translate, b.scale);
                     }
-                   // scope.showGraticule();
+                    
+                    if (scope.graticule && !scope.graticuleLayer) {
+                        scope.showGraticule();
+                    }
 
                 };
 
                 scope.showGraticule = function(){
 
                     var graticule = d3.geo.graticule();
-                    scope.graticule =
+                    scope.graticuleLayer =
                         scope.svg.append("path")
-                            .insert("g")
                         .datum(graticule)
                         .attr("class", "graticule")
                         .attr("d", scope.path)
@@ -255,46 +273,37 @@
                         .style("stroke-opacity", ".5");
                 };
 
-                function zoomToFeature(d){
+                scope.zoomToFeature = function(d){
                     // get feature translate and scale
                     var featureBounds = d3MapUtilities.getFeatureBounds(d, scope.path, scope.height, scope.width);
                     // use those data to zoom to area
                     scope.zoomToBounds(featureBounds.translate, featureBounds.scale);
                 }
 
-                var currentBounds = null;
-
-                function getCurrentBounds(){
-                    currentBounds = {scale:zoom.scale(), translate:zoom.translate()};
-                }
-
                 scope.zoomToBounds = function(translate, scale) {
                     scope.svg.transition()
                         .duration(750)
                         .call(scope.zoom.translate(translate).scale(scale).event);
-                }
-
-                var previous = [];
-
-                function reset() {
-                    active.classed("active", false);
-                    active = d3.select(null);
-                    if (currentBounds) {
-                        scope.zoomToBounds(currentBounds.translate, currentBounds.scale);
-                    }
-                }
+                };
 
                 function zoomed() {
                     var gg = scope.svg.selectAll("g");
                     gg.style("stroke-width", 1.5 / d3.event.scale + "px");
                     gg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+                    if(scope.graticuleLayer) {
+                        scope.graticuleLayer.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+                    }
                 }
 
-                // If the drag behavior prevents the default click,
-                // also stop propagation so we don’t click-to-zoom.
-                function stopped() {
+                scope.stopped = function() {
                     if (d3.event.defaultPrevented) d3.event.stopPropagation();
-                }
+                };
+
+                scope.$watch('projection', function(newValue, oldValue){
+                    //if (scope.d3projection == null) {
+                        scope.projection = newValue;
+                   // }
+                });
 
 
                 scope.$watchCollection('layers', function (newValue, oldValue) {
@@ -317,13 +326,12 @@
                     if (d3MapUtilities.verifyIsGeoJson(layer.geojson) == false) {return;}
 
                     if (scope.svg === null) {
-
                         scope.svg =
                             d3.select(element.find("div")[0])
                             .append("svg")
                             .attr("width", scope.width)
                             .attr("height", scope.height)
-                            .on("click", stopped, true);
+                            .on("click", scope.stopped, true);
 
                         scope.svg
                             .append("rect")
@@ -331,17 +339,14 @@
                             .attr("width", scope.width)
                             .attr("height", scope.height)
                             .style("fill", "white")
-                            .style("pointer-events", "all")
-                            .on("click", reset);
-
+                            .style("pointer-events", "all");
 
                         scope.svg
                             .call(scope.zoom)
                             .call(scope.zoom.event);
 
-                        scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
-
-                        scope.path = d3.geo.path().projection(scope.projection);
+                        scope.d3projection = d3MapUtilities.selectProjection(scope.projection, attrs.width, attrs.height);
+                        scope.path = d3.geo.path().projection(scope.d3projection);
                     }
 
                     layer.name = layer.name || 'newlayer';
@@ -350,7 +355,6 @@
                     }
 
                     layer.selectable = layer.selectable || false;
-
                     layer.className = '.' + layer.name + "-" + d3MapUtilities.guid();
                     layer.style =  {color: 'black', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
                     layer.hoversymbols = layer.hoversymbols || {color: 'black', opacity: 1, stroke: '#67C8FF', strokeWidth: 5};

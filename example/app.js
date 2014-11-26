@@ -28,6 +28,8 @@ mapApp.service('dataService', function( $http, $q ){
 
 mapApp.controller('MainCtrl', function($scope, dataService) {
     $scope.data = [];
+    $scope.projection = 'equirectangular';
+    $scope.showGraticule = true;
     $scope.symbols = {color:'purple', opacity:0.7, stroke:'#67C8FF', strokeWidth:0.4};
 
     loadRemoteData();

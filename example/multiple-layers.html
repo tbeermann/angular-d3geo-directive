@@ -23,7 +23,7 @@
     <div style="border: 1px solid; width:800px; height:600px">
     <d3map
             layers="data"
-            projection=mercator
+            projection="projection"
             height=600
             width=800
             pan=true
@@ -67,6 +67,7 @@
 
     mapApp.controller('MainCtrl', function($scope, dataService) {
         $scope.data = [];
+        $scope.projection = 'equirectangular';
         $scope.symbols = {
             "green" : {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4},
             "us" : {color: 'blue', opacity: .7, stroke: '#67C8FF', strokeWidth: .4},
