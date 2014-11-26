@@ -28,7 +28,7 @@ mapApp.service('dataService', function( $http, $q ){
 
 mapApp.controller('MainCtrl', function($scope, dataService) {
     $scope.data = [];
-    $scope.symbols = {color:'purple', opacity:0.9, stroke:'#67C8FF', strokeWidth:0.4};
+    $scope.symbols = {color:'purple', opacity:0.7, stroke:'#67C8FF', strokeWidth:0.4};
 
     loadRemoteData();
 
@@ -40,11 +40,14 @@ mapApp.controller('MainCtrl', function($scope, dataService) {
     }
 
     function applyRemoteData(data){
-        var layer = {};
-        layer.geojson = data;
-        layer.symbols = $scope.symbols;
-        layer.zoomTo = true;
-        layer.name = name;
+        var layer = {
+            geojson : data,
+            symbols : $scope.symbols,
+            zoomTo : true,
+            selectable : true,
+            name : 'world'
+        };
+
         $scope.data.push(layer);
     }
 });

@@ -8,17 +8,17 @@
 
 
 <div ng-controller='MainCtrl'>
-    <input type="button" value="Load South America" ng-click="loadLayer('../data/south-america.geojson', 'South America')" />
+    <input type="button" value="Load South America" ng-click="loadLayer('../data/south-america.geojson', 'South America', 'green', true, true)" />
     <br/>
-    <input type="button" value="Load USA" ng-click="loadLayer('../data/conus.geojson', 'USA')" />
+    <input type="button" value="Load USA" ng-click="loadLayer('../data/conus.geojson', 'USA', 'us', true, true)" />
     <br/>
-    <input type="button" value="Load Mexico" ng-click="loadLayer('../data/mexico.geojson', 'Mexico')" />
+    <input type="button" value="Load Mexico" ng-click="loadLayer('../data/mexico.geojson', 'Mexico', 'green', true, true)" />
     <br/>
-    <input type="button" value="Load Afghanistan" ng-click="loadLayer('../data/afghanistan.geojson', 'Afghanistan')" />
+    <input type="button" value="Load Afghanistan" ng-click="loadLayer('../data/afghanistan.geojson', 'Afghanistan', 'green', true, true)" />
     <br/>
-    <input type="button" value="Load Germany" ng-click="loadLayer('../data/germany-states.geojson', 'Germany')" />
+    <input type="button" value="Load Germany" ng-click="loadLayer('../data/germany-states.geojson', 'Germany', 'green', true, true)" />
     <br/>
-    <input type="button" value="Load Australia" ng-click="loadLayer('../data/australia.geojson', 'Australia')" />
+    <input type="button" value="Load Australia" ng-click="loadLayer('../data/australia.geojson', 'Australia', 'green', true, true)" />
     <br/><br/>
     <div style="border: 1px solid; width:800px; height:600px">
     <d3map
@@ -67,33 +67,41 @@
 
     mapApp.controller('MainCtrl', function($scope, dataService) {
         $scope.data = [];
-        $scope.symbols = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
+        $scope.symbols = {
+            "green" : {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4},
+            "us" : {color: 'blue', opacity: .7, stroke: '#67C8FF', strokeWidth: .4},
+            "worldStyle" : {color: 'grey', opacity: .5, stroke: '#777', strokeWidth: .4}
+
+        };
 
         $scope.onclick = function(d,i){
             alert(JSON.stringify(d.properties));
         };
 
-        $scope.loadLayer = function(url){
-            loadRemoteData( url );
-        };
+        $scope.loadLayer = function(url, name, style, zoomTo, selectable) {
 
-        var style = {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+            var symbol = $scope.symbols[style];
 
-        loadRemoteData("../data/afghanistan.geojson", 'afghanistan', style);
-
-        function loadRemoteData(url, name, style) {
             dataService.get(url).then(
                     function( data ) {
-                        applyRemoteData( data, name, style );
+                        applyRemoteData( data, name, symbol, zoomTo, selectable);
                     });
-        }
+        };
 
-        function applyRemoteData(data, name, symbols){
+        var worldStyle = {color: 'grey', opacity: .5, stroke: '#777', strokeWidth: .4};
+        var style = {color: 'green', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+
+
+
+        $scope.loadLayer("../data/world.geojson", 'afghanistan', 'worldStyle', true, false);
+
+        function applyRemoteData(data, name, symbols, zoomTo, selectable){
             var layer = {};
             layer.geojson = data;
             layer.symbols = symbols || style;
-            layer.zoomTo = true;
+            layer.zoomTo = zoomTo;
             layer.name = name;
+            layer.selectable = selectable;
             $scope.data.push(layer);
         }
     });

@@ -13,7 +13,18 @@
 
     d3MapModule.factory("d3MapUtilities", [function () {
         return {
-            getDataBounds: function (layer, projection, height, width) {
+            getFeatureBounds : function(d, path, height, width){
+                var bounds = path.bounds(d);
+                var dx = bounds[1][0] - bounds[0][0];
+                var dy = bounds[1][1] - bounds[0][1];
+                var x = (bounds[0][0] + bounds[1][0]) / 2;
+                var y = (bounds[0][1] + bounds[1][1]) / 2;
+                var scale = .9 / Math.max(dx / width, dy / height);
+                var translate = [width / 2 - scale * x, height / 2 - scale * y];
+                return {scale:scale, translate:translate};
+    
+            },
+            getLayerBounds: function (layer, projection, height, width) {
                 var bounds = [];
                 layer.each(function (d) {
                     var b = d3.geo.bounds(d);
@@ -49,22 +60,14 @@
                 var l = data.length;
                 for (var i = 1; i < l; i++) {
                     var d = data[i];
-                    var minXX = d[0][0];
-                    if (minX > minXX) {
-                        minX = minXX;
-                    }
-                    var minYY = d[0][1];
-                    if (minY > minYY) {
-                        minY = minYY;
-                    }
-                    var maxXX = d[1][0];
-                    if (maxX < maxXX) {
-                        maxX = maxXX;
-                    }
-                    var maxYY = d[1][1];
-                    if (maxY < maxYY) {
-                        maxY = maxYY;
-                    }
+                    //var minXX = d[0][0];
+                    if (minX > d[0][0]) {minX = d[0][0];}
+                    //var minYY = d[0][1];
+                    if (minY > d[0][1]) {minY = d[0][1];}
+                    //var maxXX = d[1][0];
+                    if (maxX < d[1][0]) {maxX = d[1][0];}
+                    //var maxYY = d[1][1];
+                    if (maxY < d[1][1]) {maxY = d[1][1];}
                 }
                 return [
                     [minX, minY],
@@ -211,31 +214,33 @@
                         .style("stroke-width", function (d, i) {
                             return layer.symbols.strokeWidth;
                         })
-                        .on("mousemove", function (d) {
-                            if (scope.mousemove) scope.mousemove(d, i);
-                        })
-                        .on("mouseenter", function (d, i) {
-                            scope.applyStyle(this, layer.hoversymbols);
-                            if (scope.mouseenter) scope.mouseenter(d, i);
-                        })
-                        .on("mouseout", function (d, i) {
-                            scope.applyStyle(this, layer.symbols);
-                            if (scope.mouseout) scope.mouseout(d, i);
-                        })
-                        .on("click", function (d, i) {
-                            if (scope.onclick) scope.onclick(d, i);
-                        });
+                        if (layer.selectable) {
+                            layer.d3Layer
+                                .on("mousemove", function (d) {
+                                    if (scope.mousemove) scope.mousemove(d, i);
+                                })
+                                .on("mouseenter", function (d, i) {
+                                    scope.applyStyle(this, layer.hoversymbols);
+                                    if (scope.mouseenter) scope.mouseenter(d, i);
+                                })
+                                .on("mouseout", function (d, i) {
+                                    scope.applyStyle(this, layer.symbols);
+                                    if (scope.mouseout) scope.mouseout(d, i);
+                                })
+                                .on("click", function (d, i) {
+                                    if (scope.onclick) scope.onclick(d, i);
+                                });
+                        }
 
                     if (layer.zoomTo){
-                        var b = d3MapUtilities.getDataBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
-                        zoomToBounds(b.translate, b.scale);
+                        var b = d3MapUtilities.getLayerBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
+                        scope.zoomToBounds(b.translate, b.scale);
                     }
                    // scope.showGraticule();
 
                 };
 
                 scope.showGraticule = function(){
-
 
                     var graticule = d3.geo.graticule();
                     scope.graticule =
@@ -248,13 +253,13 @@
                         .style("stroke", "#777")
                         .style("stroke-width", ".5px")
                         .style("stroke-opacity", ".5");
-                }
+                };
 
                 function zoomToFeature(d){
                     // get feature translate and scale
-                    var featureBounds = getFeatureBounds(d);
+                    var featureBounds = d3MapUtilities.getFeatureBounds(d, scope.path, scope.height, scope.width);
                     // use those data to zoom to area
-                    zoomToBounds(featureBounds.translate, featureBounds.scale);
+                    scope.zoomToBounds(featureBounds.translate, featureBounds.scale);
                 }
 
                 var currentBounds = null;
@@ -263,20 +268,7 @@
                     currentBounds = {scale:zoom.scale(), translate:zoom.translate()};
                 }
 
-                function getFeatureBounds(d){
-                    var bounds = path.bounds(d);
-                    var dx = bounds[1][0] - bounds[0][0];
-                    var dy = bounds[1][1] - bounds[0][1];
-                    var x = (bounds[0][0] + bounds[1][0]) / 2;
-                    var y = (bounds[0][1] + bounds[1][1]) / 2;
-
-                    var scale = .9 / Math.max(dx / width, dy / height);
-                    var translate = [width / 2 - scale * x, height / 2 - scale * y];
-                    return {scale:scale, translate:translate};
-
-                }
-
-                function zoomToBounds(translate, scale) {
+                scope.zoomToBounds = function(translate, scale) {
                     scope.svg.transition()
                         .duration(750)
                         .call(scope.zoom.translate(translate).scale(scale).event);
@@ -288,7 +280,7 @@
                     active.classed("active", false);
                     active = d3.select(null);
                     if (currentBounds) {
-                        zoomToBounds(currentBounds.translate, currentBounds.scale);
+                        scope.zoomToBounds(currentBounds.translate, currentBounds.scale);
                     }
                 }
 
@@ -344,7 +336,7 @@
 
 
                         scope.svg
-                            .call(scope.zoom) // delete this line to disable free zooming
+                            .call(scope.zoom)
                             .call(scope.zoom.event);
 
                         scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
@@ -352,9 +344,12 @@
                         scope.path = d3.geo.path().projection(scope.projection);
                     }
 
+                    layer.name = layer.name || 'newlayer';
                     if (layer.name.trim() === ''){
                         layer.name = 'newlayer';
                     }
+
+                    layer.selectable = layer.selectable || false;
 
                     layer.className = '.' + layer.name + "-" + d3MapUtilities.guid();
                     layer.style =  {color: 'black', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
