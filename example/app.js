@@ -4,7 +4,7 @@ mapApp.service('dataService', function( $http, $q ){
     function getData() {
         var request = $http({
             method: "get",
-            url: "../data/afghanistan.geojson",
+            url: "../data/world.geojson",
             params: {
                 action: "get"
             }
@@ -27,8 +27,8 @@ mapApp.service('dataService', function( $http, $q ){
 });
 
 mapApp.controller('MainCtrl', function($scope, dataService) {
-    $scope.data;
-    $scope.style = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
+    $scope.data = [];
+    $scope.symbols = {color:'purple', opacity:0.9, stroke:'#67C8FF', strokeWidth:0.4};
 
     loadRemoteData();
 
@@ -40,7 +40,12 @@ mapApp.controller('MainCtrl', function($scope, dataService) {
     }
 
     function applyRemoteData(data){
-        $scope.data = data;
+        var layer = {};
+        layer.geojson = data;
+        layer.symbols = $scope.symbols;
+        layer.zoomTo = true;
+        layer.name = name;
+        $scope.data.push(layer);
     }
 });
 

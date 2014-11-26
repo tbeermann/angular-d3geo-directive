@@ -35,8 +35,6 @@
                 var scale = factor / Math.max(Math.abs((b[1][0] - b[0][0])) / width,
                         Math.abs((b[1][1] - b[0][1])) / height);
 
-                // var translate = [-(b[1][0] + b[0][0]) / 2 , -(b[1][1] + b[0][1]) / 2];
-
                 var translate = [width / 2 - scale * x, height / 2 - scale * y];
 
                 return {scale:scale, translate:translate};
@@ -89,12 +87,12 @@
             selectProjection: function (proj, width, height) {
                 var projection;
                 switch (proj) {
-                    case  "azimuthal" :
-                        projection = d3.geo.azimuthal()
-                            .scale(380)
-                            .origin([-71.03, 42.37])
-                            .mode("orthographic")
-                            .translate([640, 400]);
+                    case  "azimuthalEqualArea" :
+                        projection = d3.geo.azimuthalEqualArea()
+                            .clipAngle(180 - 1e-3)
+                            .scale(237)
+                            .translate([width / 2, height / 2])
+                            .precision(.1);
                         break;
                     case "conicConformal" :
                         projection = d3.geo.conicConformal()
@@ -149,7 +147,7 @@
         };
     }]);
 
-    d3MapModule.directive('d3multimap', ['d3MapUtilities', function (d3MapUtilities) {
+    d3MapModule.directive('d3map', ['d3MapUtilities', function (d3MapUtilities) {
         return {
             restrict: 'EA',
             scope: {
@@ -169,11 +167,10 @@
                 scope.svg = null;
                 scope.projection = null;
                 scope.path = null;
-                scope.zoom = d3.behavior.zoom()
-                    .on("zoom", zoomed);
-
+                scope.zoom = d3.behavior.zoom().on("zoom", zoomed);
                 scope.layerCollection = [];
-
+                scope.graticule;
+                // reference definition
                 scope.geoLayer = {
                     geojson:{},
                     symbol:{},
@@ -186,12 +183,16 @@
                         .style({'stroke':style.stroke})
                         .style({'fill': style.color})
                         .style({'opacity': style.opacity})
-                        .style({'stroke-width': style.strokeWidth});
+                        //.style({'stroke-width': style.strokeWidth});
+                        .style("stroke-width", 1.5 / d3.event.scale + "px");
                 };
 
                 scope.renderLayer = function(layer) {
 
                     layer.d3Layer = scope.svg.insert("g").selectAll(layer.className).data(layer.geojson.features);
+
+                    layer.symbols = layer.symbols || {color: 'black', opacity: .7, stroke: '#67C8FF', strokeWidth: .4};
+                    layer.hoversymbols = layer.hoversymbols || {color: 'black', opacity: 1, stroke: '#67C8FF', strokeWidth: 5};
 
                     layer.d3Layer
                         .enter()
@@ -199,48 +200,61 @@
                         .attr("class", layer.className)
                         .attr("d", scope.path)
                         .style("fill", function (d, i) {
-                            return  layer.style.color;
+                            return  layer.symbols.color;
                         })
                         .style("opacity", function (d, i) {
-                            return layer.style.opacity
+                            return layer.symbols.opacity
                         })
                         .style("stroke", function (d, i) {
-                            return layer.style.stroke;
+                            return layer.symbols.stroke;
                         })
                         .style("stroke-width", function (d, i) {
-                            return layer.style.strokeWidth;
-                        });
-                        //.on("click", clicked);
-
-                    if (layer.zoomTo){
-                        var b = d3MapUtilities.getDataBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
-                        zoomToBounds(b.translate, b.scale);
-                    }
-
-                    layer.d3Layer
+                            return layer.symbols.strokeWidth;
+                        })
                         .on("mousemove", function (d) {
                             if (scope.mousemove) scope.mousemove(d, i);
                         })
                         .on("mouseenter", function (d, i) {
-                            scope.applyStyle(this, selectionStyle);
+                            scope.applyStyle(this, layer.hoversymbols);
                             if (scope.mouseenter) scope.mouseenter(d, i);
                         })
                         .on("mouseout", function (d, i) {
-                            scope.applyStyle(this, style);
+                            scope.applyStyle(this, layer.symbols);
                             if (scope.mouseout) scope.mouseout(d, i);
                         })
                         .on("click", function (d, i) {
                             if (scope.onclick) scope.onclick(d, i);
                         });
 
+                    if (layer.zoomTo){
+                        var b = d3MapUtilities.getDataBounds(layer.d3Layer, scope.projection, scope.height, scope.width);
+                        zoomToBounds(b.translate, b.scale);
+                    }
+                   // scope.showGraticule();
+
                 };
+
+                scope.showGraticule = function(){
+
+
+                    var graticule = d3.geo.graticule();
+                    scope.graticule =
+                        scope.svg.append("path")
+                            .insert("g")
+                        .datum(graticule)
+                        .attr("class", "graticule")
+                        .attr("d", scope.path)
+                        .style("fill", "none")
+                        .style("stroke", "#777")
+                        .style("stroke-width", ".5px")
+                        .style("stroke-opacity", ".5");
+                }
 
                 function zoomToFeature(d){
                     // get feature translate and scale
                     var featureBounds = getFeatureBounds(d);
                     // use those data to zoom to area
                     zoomToBounds(featureBounds.translate, featureBounds.scale);
-
                 }
 
                 var currentBounds = null;
@@ -336,6 +350,10 @@
                         scope.projection = d3MapUtilities.selectProjection(attrs.projection, attrs.width, attrs.height);
 
                         scope.path = d3.geo.path().projection(scope.projection);
+                    }
+
+                    if (layer.name.trim() === ''){
+                        layer.name = 'newlayer';
                     }
 
                     layer.className = '.' + layer.name + "-" + d3MapUtilities.guid();

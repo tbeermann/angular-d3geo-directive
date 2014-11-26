@@ -9,9 +9,7 @@
 
 <div ng-controller='MainCtrl'>
     <d3map
-        geojson="data"
-        symbols=""
-        hoversymbols=""
+        layers="data"
         projection=equirectangular
         height=600
         width=1000
@@ -22,7 +20,7 @@
 </div>
 
     <script src='../libs/d3.min.js'></script>
-    <script src='../libs/angular.js'></script>
+    <script src='../libs/angular.1.3.4.js'></script>
     <script src='../d3geo-directives.js'></script>
     <script src='app.js'></script>
 </body>

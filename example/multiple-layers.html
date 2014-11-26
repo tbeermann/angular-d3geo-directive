@@ -21,7 +21,7 @@
     <input type="button" value="Load Australia" ng-click="loadLayer('../data/australia.geojson', 'Australia')" />
     <br/><br/>
     <div style="border: 1px solid; width:800px; height:600px">
-    <d3multimap
+    <d3map
             layers="data"
             projection=mercator
             height=600
@@ -29,7 +29,7 @@
             pan=true
             onclick="onclick"
             >
-    </d3multimap>
+    </d3map>
     </div>
 </div>
 
@@ -66,7 +66,6 @@
     });
 
     mapApp.controller('MainCtrl', function($scope, dataService) {
-        $scope.layers = [];
         $scope.data = [];
         $scope.symbols = {color:'purple', opacity:.9, stroke:'#67C8FF', strokeWidth:.4};
 
@@ -92,7 +91,7 @@
         function applyRemoteData(data, name, symbols){
             var layer = {};
             layer.geojson = data;
-            layer.symbols = symbols || $scope.style;
+            layer.symbols = symbols || style;
             layer.zoomTo = true;
             layer.name = name;
             $scope.data.push(layer);
